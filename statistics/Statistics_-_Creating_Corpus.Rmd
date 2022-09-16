@@ -1,0 +1,1023 @@
+---
+title: "Statistics"
+author: "Daniel Paeschke"
+date: "12/1/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(eval=FALSE, results = "hide")
+```
+
+```{r}
+setwd("~/Desktop/R Data")
+library(readr)
+library(dplyr)
+```
+Funktion definieren
+```{r}
+getCorpusSubset <- function(corpusPath, minLength, maxLength, filterFunction = NULL){
+  corpus <- read_csv(corpusPath)
+  if(! is.null(filterFunction)){
+    corpus <- filterFunction(corpus)
+  }
+  sentence_length_b <- sapply(strsplit(corpus$b_text, " "), length)   # length of english
+  sentence_length_a <- sapply(strsplit(corpus$a_text, " "), length)
+  extendedCorpus <- cbind(corpus, sentence_length_b, sentence_length_a)   
+  corpusSubset <- subset(extendedCorpus, subset = sentence_length_b > minLength & sentence_length_a < maxLength & sentence_length_a > minLength & sentence_length_b < maxLength ) 
+  corpusSubset <- corpusSubset[order(corpusSubset$b_text),]
+  return(corpusSubset)
+}
+```
+
+
+```{r}
+filterMedline <- function(corpus){
+ return(dplyr::filter(corpus, corpus$language_a != "pt"))
+} 
+
+medline <- getCorpusSubset("medline.csv", 3, 27, filterMedline)
+ufal_ecdc <- getCorpusSubset("ufal_ecdc.csv", 6, 24)
+ufal_emea <- getCorpusSubset("ufal_emea.csv", 3, 19)
+ggponc <- getCorpusSubset("ggponc.csv", 1, 1000)
+
+
+```
+
+```{r}
+getLanguageTable <- function(corpus){
+  #language_a <- c()
+  #language_b <- c()
+  a_text <- c()
+  b_text <- c()
+  deCount <- c()
+  esCount <- c()
+  frCount <- c()
+  countSum <- c()
+  distinctCountSum <- c()
+  
+  #for(currentSentence in unique(corpus$b_text)){
+  for(currentSentence in corpus$b_text){
+    occurrences <- corpus[corpus$b_text == currentSentence,]
+    currentDeCount <- length(which(occurrences$language_a == "de"))
+    currentEsCount <- length(which(occurrences$language_a == "es"))
+    currentFrCount <- length(which(occurrences$language_a == "fr"))
+    currentDistinctCount <- length(unique(occurrences$a_text))
+    #language_a <- c(language_a, occurrences$language_a)
+    #language_b <- c(language_b, occurrences$language_b)
+    a_text <- c(a_text, occurrences$a_text)
+    b_text <- c(b_text, currentSentence)
+    deCount <- c(deCount, currentDeCount)
+    esCount <- c(esCount, currentEsCount)
+    frCount <- c(frCount, currentFrCount)
+    countSum <- c(countSum, sum(currentDeCount, currentEsCount, currentFrCount))
+    distinctCountSum <- c(distinctCountSum, currentDistinctCount)
+  }
+  
+  
+  #return(data.frame(language_a, language_b, a_text, b_text, deCount, esCount,  frCount, countSum, distinctCountSum))
+  return(data.frame(a_text, b_text, deCount, esCount,  frCount, countSum, distinctCountSum))
+  
+}
+
+```
+
+
+```{r}
+filterTable <- function(corpus){
+  #corpus[order(corpus$b_text, corpus$a_text),]
+  a_text <- c()
+  b_text <- c()
+  
+  i<-1
+  ii<-i+1
+  
+  for(currentSentence in corpus$b_text){
+    b_text <- c(b_text, currentSentence)
+    
+    #if ((corpus[i,4] == corpus[ii,4]) & (corpus[i,3] == corpus[ii,3])){
+    if (corpus[i,4] == corpus[ii,4]) {
+      a_text <- c(a_text, "")
+    } else {
+      a_text <- c(a_text, corpus[i,3])
+    }
+    
+    i<-i+1
+    ii<-i+1
+  }
+  return(data.frame(b_text, a_text)) 
+}
+```
+
+
+```{r}
+medlineTable <- getLanguageTable(medline)
+
+ufal_ecdcTable <- getLanguageTable(ufal_ecdc)
+
+ufal_emeaTable <- getLanguageTable(ufal_emea)
+
+emeaTable <- getLanguageTable(emeaDe)
+
+emeaTable2 <- filterTable(emeaDe)
+
+```
+
+
+
+
+
+
+
+```{r}
+reorder Index for Emea
+
+
+table(ufal_emea$language_a)
+
+ufal_emea <- ufal_emea[order(ufal_emea$a_text),]
+
+row.names(ufal_emea) <- NULL   # reset row name after ordering
+ 
+```
+
+
+```{r}
+medlineDe <- medline[(medline$language_a == "de"), ]
+write.csv(medlineDe, "medlineDe.csv")
+
+medlineEs <- medline[(medline$language_a == "es"), ]
+write.csv(medlineEs, "medlineEs.csv")
+
+medlineFr <- medline[(medline$language_a == "fr"), ]
+write.csv(medlineFr, "medlineFr.csv")
+
+
+ecdcDe <- ufal_ecdc[(ufal_ecdc$language_a == "de"), ]
+write.csv(ecdcDe, "ecdcDe.csv")
+
+ecdcEs <- ufal_ecdc[(ufal_ecdc$language_a == "es"), ]
+write.csv(ecdcEs, "ecdcEs.csv")
+
+ecdcFr <- ufal_ecdc[(ufal_ecdc$language_a == "fr"), ]
+write.csv(ecdcFr, "ecdcFr.csv")
+
+#EMEA
+
+emeaDe <- ufal_emea[(ufal_emea$language_a == "de"), ]
+emeaEs <- ufal_emea[(ufal_emea$language_a == "es"), ] 
+emeaFr <- ufal_emea[(ufal_emea$language_a == "fr"), ]
+
+#Cut EMEA to 3500 sentences
+
+emeaDe = emeaDe[seq(1, nrow(emeaDe), 26), ]
+emeaEs = emeaEs[seq(1, nrow(emeaEs), 20), ]
+emeaFr = emeaFr[seq(1, nrow(emeaFr), 24), ]
+
+
+# Postprocessing of EMEA in order to delete things like --------  or Russian and other languages
+#DE
+emeaDe <- emeaDe[order(emeaDe$a_text),]
+emeaDe <- emeaDe[order(emeaDe$b_text),]
+row.names(emeaDe) <- NULL   # reset row name after ordering
+
+emeaDe$ID <- seq.int(nrow(emeaDe)) #add ID to cut 
+emeaDe <- subset(emeaDe, subset = ID < 7754)   #adjust cutting manually 
+emeaDe <- subset(emeaDe, subset = ID > 1446)
+emeaDe$ID <- NULL   #delete ID row
+
+#ES
+
+emeaEs <- emeaEs[order(emeaEs$a_text),]
+emeaEs <- emeaEs[order(emeaEs$b_text),]
+row.names(emeaEs) <- NULL   # reset row name after ordering
+
+emeaEs$ID <- seq.int(nrow(emeaEs)) #add ID to cut 
+emeaEs <- subset(emeaEs, subset = ID < 280)   #adjust cutting manually 
+emeaEs <- subset(emeaEs, subset = ID > 186)
+emeaEs$ID <- NULL   #delete ID row
+
+#FR
+
+emeaFr <- emeaFr[order(emeaFr$a_text),]
+emeaFr <- emeaFr[order(emeaFr$b_text),]      
+row.names(emeaFr) <- NULL   # reset row name after ordering
+
+emeaFr$ID <- seq.int(nrow(emeaFr)) #add ID to cut 
+emeaFr <- subset(emeaFr, subset = ID < 6812)   #adjust cutting manually 
+emeaFr <- subset(emeaFr, subset = ID > 386)
+emeaFr$ID <- NULL   #delete ID row
+
+
+
+
+```
+
+
+export excel
+```{r}
+library("xlsx")
+# Write the first data set in a new workbook
+write.xlsx(emeaDe, file = "emeaDe1.xlsx",
+      sheetName = "emeaDe", append = FALSE)
+
+write.xlsx(emeaFi, file = "emeaEs1.xlsx",
+      sheetName = "emeaEs", append = FALSE)
+
+write.xlsx(emeaFr, file = "emeaFr1.xlsx",
+      sheetName = "emeaFr", append = FALSE)
+
+
+```
+
+import after Excel
+```{r}
+library("readxl")
+emeaDe <- read_excel("emeaDe2.xlsx")
+emeaEs <- read_excel("emeaEs2.xlsx")
+emeaFr <- read_excel("emeaFr2.xlsx")
+
+
+#save as csv
+
+write.csv(emeaDe, "emeaDe.csv")
+write.csv(emeaEs, "emeaEs.csv")
+write.csv(emeaFr, "emeaFr.csv")
+
+
+#import Final csv Files with Translation and Scores
+library(readr)
+library(dplyr)
+
+EmeaEs <- read.csv("Final Files to Translate/emeaEs.csv")
+EmeaFr <- read.csv("Final Files to Translate/emeaFr.csv")
+
+missingSentencesDeepl <- rbind(EmeaEs, EmeaFr)
+
+missingSentencesDeepl2 <- missingSentencesDeepl
+
+
+missingSentencesDeepl2$ID <- seq.int(nrow(missingSentencesDeepl2)) 
+missingSentencesDeepl2  <- subset(missingSentencesDeepl2, subset = ID > 8999)
+emeaFr$ID <- NULL   #delete ID row
+
+
+CEF_Scores <- read.csv("Final translated data/CEF_Scores_run_60128a8595fd9.csv")
+DeepL_Scores1 <- read.csv("Final translated data/DeepL_Scores_First_Part_run_6014458fe1b3a.csv")
+
+DeepL_Scores1$ID <- seq.int(nrow(DeepL_Scores1)) 
+DeepL_Scores1  <- subset(DeepL_Scores1, subset = ID < 8541)
+DeepL_Scores1$ID <- NULL   #delete ID row
+
+DeepL_Scores2 <- read.csv("Final translated data/DeepL_Scores_Second_Part_run_6017e8aa46990.csv")
+
+DeepL_Scores <- rbind(DeepL_Scores1, DeepL_Scores2)
+write.csv(DeepL_Scores, "DeepL_Scores.csv")
+
+
+table(DeepL_Scores$corpus)
+
+
+CEF_ScoresSubset <- CEF_Scores
+CEF_ScoresSubset$ID <- seq.int(nrow(CEF_ScoresSubset)) 
+CEF_ScoresSubset  <- subset(CEF_ScoresSubset, subset = ID < 8541)
+CEF_Scores$ID <- NULL   #delete ID row
+
+DeeplSubset <- DeepL_Scores
+DeeplSubset$ID <- seq.int(nrow(DeeplSubset)) 
+DeeplSubset  <- subset(DeeplSubset, subset = ID < 8541)
+DeeplSubset$ID <- NULL   #delete ID row
+
+#   https://stackoverflow.com/questions/3541713/how-to-plot-two-histograms-together-in-r
+library(ggplot2) 
+DeeplSubset$BLEURT_hist <- 'Deepl'
+CEF_ScoresSubset$BLEURT_hist <- 'CEF'
+
+histCombined <- rbind(DeeplSubset, CEF_ScoresSubset)
+
+#ggplot(histCombined, aes(BLEURT, fill = BLEURT_hist)) + 
+   geom_histogram(alpha = 0.5, aes(y = ..density..), position = 'identity')
+
+#ggplot(histCombined, aes(BLEURT, fill = BLEURT_hist)) + geom_bar(pos="dodge")
+
+ggplot(histCombined, aes(BLEURT, fill = BLEURT_hist)) + geom_density(alpha = 0.2)   # use this one!!
+
+
+#BLEu hist of Deepl and CEF
+DeeplSubset$BLEU_hist <- 'Deepl'
+CEF_ScoresSubset$BLEU_hist <- 'CEF'
+histBleu <- rbind(DeeplSubset, CEF_ScoresSubset)
+ggplot(histBleu, aes(BLEU, fill = BLEU_hist)) + geom_density(alpha = 0.2)   
+
+# Rouge
+DeeplSubset$Rouge_hist <- 'Deepl'
+CEF_ScoresSubset$Rouge_hist <- 'CEF'
+histRouge <- rbind(DeeplSubset, CEF_ScoresSubset)
+ggplot(histRouge, aes(ROUGE, fill = ROUGE_hist)) + geom_density(alpha = 0.2)   
+
+
+
+
+hist(CEF_ScoresSubset$BLEURT, main="BLEURT Score CEF", freq = FALSE, col = "salmon",breaks = 100)
+
+hist(DeeplSubset$BLEURT, main="BLEURT Score DeepL", freq = FALSE, col = "lightblue",breaks = 100)
+
+wilcox.test(DeeplSubset$BLEURT, CEF_ScoresSubset$BLEURT, paired=FALSE)
+
+
+
+
+
+#Distribution of Data
+#http://www.sthda.com/english/wiki/normality-test-in-r
+library("dplyr")
+library("ggpubr")
+
+ggdensity(CEF_Scores$BLEURT, 
+          main = "",
+          xlab = " BLEURT") 
+
+ggqqplot(CEF_Scores$BLEURT)
+shapiro.test(CEF_Scores$BLEURT)
+
+qqnorm(CEF_Scores$BLEURT); qqline(CEF_Scores$BLEURT)
+
+ks.test(CEF_Scores$BLEURT,"pnorm",mean(CEF_Scores$BLEURT),sqrt(var(CEF_Scores$BLEURT)))
+
+
+
+
+
+
+
+
+
+ library(nortest)
+ x <- CEF_Scores$BLEURT
+ ad.test(x)
+ shapiro.test(x)
+
+ qqnorm(x)
+
+ 
+ 
+ library(SparkR)
+ spark.kstest(x)
+ 
+ hist(x, , col = c("salmon"))
+ 
+par(mfrow = c(1, 1))
+hist(CEF_Scores$BLEURT, main="BLEURT Score CEF", freq = FALSE, col = "salmon",breaks = 100)
+
+hist(DeepL_Scores$BLEURT, main="BLEURT Score DeepL", freq = FALSE, col = "lightblue",breaks = 100)
+
+
+hist(CEF_Scores$BLEU, main="BLEU Score CEF", freq = FALSE, col = "salmon",breaks = 100)
+
+hist(DeepL_Scores$BLEU, main="BLEU Score DeepL", freq = FALSE, col = "lightblue",breaks = 100)
+ 
+
+
+hist(CEF_Scores$ROUGE, main="ROUGE Score CEF", freq = FALSE, col = "salmon",breaks = 100)
+
+hist(DeepL_Scores$ROUGE, main="ROUGE Score DeepL", freq = FALSE, col = "lightblue",breaks = 100)
+ 
+
+```
+
+IBM Watson needs xlsx instead of csv
+Load csv files and format to .xlsx
+```{r}
+setwd("~/Desktop/R Data/Final Files to Translate/")
+library("readr")
+medlineDe <- read.csv("Final Files to Translate/medlineDe.csv")
+medlineEs <- read.csv("Final Files to Translate/medlineEs.csv")
+medlineFr <- read.csv("Final Files to Translate/medlineFr.csv")
+
+ecdcDe <- read.csv("Final Files to Translate/ecdcDe.csv")
+ecdcEs <- read.csv("Final Files to Translate/ecdcEs.csv")
+ecdcFr <- read.csv("Final Files to Translate/ecdcFr.csv")
+
+emeaDe <- read.csv("Final Files to Translate/emeaDe.csv")
+emeaEs <- read.csv("Final Files to Translate/emeaEs.csv")
+emeaFr <- read.csv("Final Files to Translate/emeaFr.csv")
+
+
+library("xlsx")
+# Write the first data set in a new workbook
+write.xlsx(medlineDe, file = "medlineDe.xlsx", sheetName = "medlineDe", append = FALSE)
+write.xlsx(medlineEs, file = "medlineEs.xlsx", sheetName = "medlineEs", append = FALSE)
+write.xlsx(medlineFr, file = "medlineFr.xlsx", sheetName = "medlineFr", append = FALSE)
+
+write.xlsx(ecdcDe, file = "ecdcDe.xlsx", sheetName = "ecdcDe", append = FALSE)
+write.xlsx(ecdcEs, file = "ecdcEs.xlsx", sheetName = "ecdcEs", append = FALSE)
+write.xlsx(ecdcFr, file = "ecdcFr.xlsx", sheetName = "ecdcFr", append = FALSE)
+
+write.xlsx(emeaDe, file = "emeaDe.xlsx", sheetName = "emeaDe", append = FALSE)
+write.xlsx(emeaEs, file = "emeaEs.xlsx", sheetName = "emeaEs", append = FALSE)
+write.xlsx(emeaFr, file = "emeaFr.xlsx", sheetName = "emeaFr", append = FALSE)
+
+```
+
+
+
+```{r}
+t Tests
+
+
+wilcox.test(CEF_Scores$BLEURT, DeepL_Scores$BLEURT, alternative = "two.sided")
+
+
+
+```
+
+
+
+
+```{r}
+library(fitdistrplus)
+library(logspline)
+descdist(CEF_Scores$BLEURT, discrete = FALSE)
+
+
+#change dataset
+#AllCorporaFiltered <- subset(AllCorporaUNfiltered, subset = AllCorporaUNfiltered_length  1 & AllCorporaUNfiltered_length < 60)
+
+#make data fit from 0 to 1
+# https://stackoverflow.com/questions/44507568/error-when-fitting-a-beta-distribution-the-function-mle-failed-to-estimate-the
+
+x_scaled <- (CEF_Scores$BLEURT - min(CEF_Scores$BLEURT) + 0.001) / (max(CEF_Scores$BLEURT) - min(CEF_Scores$BLEURT) + 0.002)
+
+fit.beta <- fitdist(x_scaled, "beta")
+
+plot(fit.beta,col="lightblue")     # Plot will show after 10 minutes
+
+
+fit.norm <- fitdist(x_scaled, "norm")
+plot(fit.norm,col="lightblue")
+
+
+```
+
+```{r}
+library(fitdistrplus)
+library(logspline)
+descdist(CEF_Scores$BLEURT, discrete = FALSE)
+
+
+#change dataset
+#AllCorporaFiltered <- subset(AllCorporaUNfiltered, subset = AllCorporaUNfiltered_length  1 & AllCorporaUNfiltered_length < 60)
+
+#make data fit from 0 to 1
+# https://stackoverflow.com/questions/44507568/error-when-fitting-a-beta-distribution-the-function-mle-failed-to-estimate-the
+
+x_scaled <- (CEF_Scores$BLEURT - min(CEF_Scores$BLEURT) + 0.001) / (max(CEF_Scores$BLEURT) - min(CEF_Scores$BLEURT) + 0.002)
+
+fit.beta <- fitdist(x_scaled, "beta")
+
+plot(fit.beta)     # Plot will show after 10 minutes
+
+
+fit.norm <- fitdist(x_scaled, "norm")
+plot(fit.norm,col="lightblue")
+
+
+```
+
+
+manual filtering of single lines
+```{r}
+
+emeaEs <- emeaEs
+
+```
+
+
+
+
+Cost calculation
+```{r}
+
+#Number of CHaracters
+
+nchar(medlineDe)
+nchar(medlineEs)
+nchar(medlineFr)
+
+nchar(ecdcDe)
+nchar(ecdcEs)
+nchar(ecdcFr)
+
+nchar(emeaDe)
+nchar(emeaEs)
+nchar(emeaFr)
+
+
+#Number of Sentences
+
+table(medlineDe$language_a)
+table(medlineEs$language_a)
+table(medlineFr$language_a)
+
+table(ecdcDe$language_a)
+table(ecdcEs$language_a)
+table(ecdcFr$language_a)
+
+table(emeaDe$language_a)
+table(emeaEs$language_a)
+table(emeaFr$language_a)
+
+
+
+
+```
+
+
+descriptive statistics of Corpora
+```{r}
+
+
+setwd("~/Desktop/R Data/Final Files to Translate/")
+
+
+medlineDe <- read.csv("Final Files to Translate/medlineDe.csv")
+medlineDe['Corpus']='medlineDe'
+medlineDe['CorpusNumber']='1'
+
+medlineEs <- read.csv("Final Files to Translate/medlineEs.csv")
+medlineEs['Corpus']='medlineEs'
+medlineEs['CorpusNumber']='2'
+
+medlineFr <- read.csv("Final Files to Translate/medlineFr.csv")
+medlineFr['Corpus']='medlineFr'
+medlineFr['CorpusNumber']='3'
+
+
+
+ecdcDe <- read.csv("Final Files to Translate/ecdcDe.csv")
+ecdcDe['Corpus']='ecdcDe'
+ecdcDe['CorpusNumber']='4'
+
+ecdcEs <- read.csv("Final Files to Translate/ecdcEs.csv")
+ecdcEs['Corpus']='ecdcEs'
+ecdcEs['CorpusNumber']='5'
+
+ecdcFr <- read.csv("Final Files to Translate/ecdcFr.csv")
+ecdcFr['Corpus']='ecdcFr'
+ecdcFr['CorpusNumber']='6'
+
+
+emeaDe <- read.csv("Final Files to Translate/emeaDe.csv")
+emeaDe['Corpus']='emeaDe'
+emeaDe['CorpusNumber']='7'
+
+emeaEs <- read.csv("Final Files to Translate/emeaEs.csv")
+emeaEs['Corpus']='emeaEs'
+emeaEs['CorpusNumber']='8'
+
+emeaFr <- read.csv("Final Files to Translate/emeaFr.csv")
+emeaFr['Corpus']='emeaFr'
+emeaFr['CorpusNumber']='9'
+
+
+
+FinalCorpus <- rbind(medlineDe, medlineEs, medlineFr, ecdcDe, ecdcEs, ecdcFr, emeaDe, emeaEs, emeaFr)
+
+# update ID column
+FinalCorpus$X <- NULL
+row.names(FinalCorpus) <- NULL
+#save as csv
+write.csv(emeaDe, "FinalCorpus.csv")
+
+
+hist(FinalCorpus$sentence_length_b)
+boxplot(FinalCorpus$sentence_length_b)
+
+
+
+
+#Count Number of CHaracters
+nchar(FinalCorpus)
+
+
+hist(as.numeric(FinalCorpus$CorpusNumber))
+
+
+Test <- subset(FinalCorpus, subset = sentence_length_b > 5)
+ks.test(Test$sentence_length_b,"pnorm",mean(Test$sentence_length_b),sqrt(var(Test$sentence_length_b)))
+
+
+#Stefan Hist
+par(mfrow = c(1, 1))
+hist(FinalCorpus$sentence_length_b, freq = FALSE, col = "grey")
+lines(density(FinalCorpus$sentence_length_b), col = "blue")
+
+
+library(psych)
+describe.by(FinalCorpus, FinalCorpus$Corpus)
+describe.by(FinalCorpus)
+
+```
+
+
+```{r}
+if(!require(berryFunctions)) install.packages("berryFunctions")
+library(berryFunctions)
+
+
+  
+par(mgp=c(3,0.7,0), las=1) 
+hist(FinalCorpus$sentence_length_b, breaks=20, col="azure3",
+  main="Probability density, total histogram area=1",
+  xlab="Annual rainfall sum Potsdam 1893:2018", freq=FALSE) 
+abline(v=mean(FinalCorpus$sentence_length_b), col="red", lwd=5) 
+textField(650, 0.005, paste0("mean = ", round(mean(FinalCorpus$sentence_length_b),0)), col="red") 
+musd <- function(x,f=1) mean(x,na.rm=TRUE)+c(-f,f)*sd(x, na.rm=TRUE) 
+segments(musd(FinalCorpus$sentence_length_b,1), rep(-1,2), y1=rep(0.0025,2), col="red", lwd=5) 
+textField(690, 0.004, paste0("sd = ", round(sd(FinalCorpus$sentence_length_b),0)), col="red") 
+textField(589, 0.002, "70% of values between\nmu +- 1 sd") 
+segments(musd(FinalCorpus$sentence_length_b,2), rep(-1,2), y1=rep(0.0006,2), col="red", lwd=5) 
+textField(589, 0.0007, "95% of values between\nmu +- 2 sd") 
+lines(200:900, dnorm(200:900, mean(FinalCorpus$sentence_length_b), sd(FinalCorpus$sentence_length_b)), col="red",lwd=3)
+
+```
+
+
+
+
+
+
+```{r}
+
+ufal_emea$ID <- seq.int(nrow(ufal_emea))
+
+ufal_emea$ID <- NULL
+
+ufal_emea <- subset(ufal_emea, subset = ID > 126)
+
+
+ufal_emea <- subset(ufal_emea, subset = ID > 141777 & ID < 756546)
+
+
+table(ufal_emea$language_a)
+
+
+
+
+
+```
+ONE WAY ANOVA
+http://www.sthda.com/english/wiki/one-way-anova-test-in-r
+
+Statistics of translated data
+```{r}
+testFile <- read.csv("translated data/run_600f1173b0325.csv")
+
+meanMedlineDe <- mean(testFile$BLEURT)
+
+medlineDePost <- testFile[testFile$corpus == 'medlineDe',]
+
+
+ecdcDePost <- testFile[testFile$corpus == 'ecdcDe',]
+
+
+```
+
+visualize
+```{r}
+library(dplyr)
+group_by(testFile, corpus) %>%
+  summarise(
+    count = n(),
+    mean = mean(BLEURT, na.rm = TRUE),
+    sd = sd(BLEURT, na.rm = TRUE)
+  )
+
+
+library("ggpubr")
+ggboxplot(testFile, x = "corpus", y = "BLEURT", 
+          color = "BLEURT", palette = c("#00AFBB", "#E7B800", "#FC4E07", "#00AFBB", "#E7B800", "#FC4E07"),
+          order = c("medlineDe", "medlineEs", "medlineFr", "EcdcDe", "EcdcEs", "EcdcFR"),
+          ylab = "BLEURT", xlab = "Corpora")
+
+
+library("ggpubr")
+ggline(testFile, x = "corpus", y = "BLEURT", 
+       add = c("mean_se", "jitter"), 
+       order = c("medlineDe", "medlineEs", "medlineFr"),
+       ylab = "Weight", xlab = "Treatment")
+
+```
+
+
+ANOVA
+```{r}
+res.aov <- aov(BLEURT ~ corpus, data = testFile)
+
+summary(res.aov)
+
+TukeyHSD(res.aov)
+
+
+plot(res.aov, 1)
+
+library(car)
+leveneTest(BLEURT ~ corpus, data = testFile)
+
+oneway <- oneway.test(BLEURT ~ corpus, data = testFile)
+summary(oneway)
+
+plot(res.aov, 2)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Corpus bauen
+```{r}
+#Medline
+medline #no length variable - pure
+medline_length <- sapply(strsplit(medline$b_text, " "), length)   # length of english
+medline <- cbind(medline, medline_length)    
+
+medlineN <- subset(medline, subset = medline_length > 3) #all values below 3 only "methods"
+
+medlineN <- medlineN[order(medlineN$b_text),]   #sort by # nonsense, only  1 translation per sentence
+
+table(medlineN$language_a)
+
+
+
+#ECDC
+View(ufal_ecdc)
+
+ufal_ecdc_length <- sapply(strsplit(ufal_ecdc$b_text, " "), length)
+
+ufal_ecdc <- cbind(ufal_ecdc, ufal_ecdc_length)
+
+ufal_ecdcN <- subset(ufal_ecdc, subset = ufal_ecdc_length > 3 & ufal_ecdc_length < 60)   #to unify data
+
+n_occurEcdc <- data.frame(table(ufal_ecdcN$b_text))
+
+n_occurEcdc[n_occurEcdc$Freq > 1,]
+
+descdist(n_occurEcdc$Freq, discrete = FALSE)
+
+
+
+ufal_ecdcN <- ufal_ecdcN[order(ufal_ecdcN$b_text),]   #sort by 
+ 
+ View(ufal_ecdcN)
+ table(ufal_ecdcN$language_a)
+ 
+ 
+ 
+ # EMEA
+
+ufal_emea_length <- sapply(strsplit(ufal_emea$a_text, " "), length)
+
+ufal_emea <- cbind(ufal_emea, ufal_emea_length)
+
+ufal_emeaN <- subset(ufal_emea, subset = ufal_emea_length > 3 & ufal_emea_length < 60)   #to unify data
+
+
+
+  
+ufal_emeaN = ufal_emeaN[-c(1:166425),]    # cutting of missing data, or data with just random numbers
+
+hist(ufal_emeaN$ufal_emea_length)
+
+ufal_emeaN$b_text2 <- ufal_emeaN$b_text # duplicate a row
+
+
+
+
+# try again
+
+
+library( tidyverse )
+
+ufal_emeaN %>% group_by( b_text ) %>%
+    do( idx = which(ufal_emeaN$b_text == unique(.$b_text)) ) %>% 
+    ungroup %>% unnest %>% group_by( b_text ) %>%
+    mutate( m = stringr::str_c( "match", 1:n() ) ) %>%
+    spread( m, idx )
+
+
+```
+
+
+how to search for strings 
+https://stackoverflow.com/questions/16905425/find-duplicate-values-in-r
+```{r}
+n_occur <- data.frame(table(AllCorporaUNfiltered$b_text))
+
+n_occur[n_occur$Freq > 1,]
+
+
+ View(n_occur)
+ 
+ 
+n_occurFiltered <- data.frame(table(AllCorporaFiltered$b_text))
+n_occurFiltered[n_occurFiltered$Freq > 1,]
+
+descdist(n_occurFiltered, discrete = FALSE)
+```
+
+
+
+
+
+
+
+Distribution of Data
+https://stats.stackexchange.com/questions/132652/how-to-determine-which-distribution-fits-my-data-best
+
+```{r}
+library(fitdistrplus)
+library(logspline)
+descdist(FinalCorpus$sentence_length_b, discrete = FALSE)
+
+
+#change dataset
+#AllCorporaFiltered <- subset(AllCorporaUNfiltered, subset = AllCorporaUNfiltered_length  1 & AllCorporaUNfiltered_length < 60)
+
+#make data fit from 0 to 1
+# https://stackoverflow.com/questions/44507568/error-when-fitting-a-beta-distribution-the-function-mle-failed-to-estimate-the
+
+x_scaled <- (FinalCorpus$sentence_length_b - min(FinalCorpus$sentence_length_b) + 0.001) / (max(FinalCorpus$sentence_length_b) - min(FinalCorpus$sentence_length_b) + 0.002)
+
+fit.beta <- fitdist(x_scaled, "beta")
+
+plot(fit.beta)     # Plot will show after 10 minutes
+
+
+fit.norm <- fitdist(x_scaled, "norm")
+plot(fit.norm,col="lightblue")
+
+
+```
+
+
+
+Create one Corpus out of medline, ufal_ecdc, ufal_emea
+```{r}
+AllCorpora <- dplyr::bind_rows(medline, ufal_ecdc, ufal_emea)  
+```
+
+
+
+
+
+Descriptive Statistics
+
+```{r}
+ mean(AllCorporaUNfiltered_length)
+
+ sd(AllCorporaUNfiltered_length)
+
+ var(AllCorporaUNfiltered_length)
+
+ median(AllCorporaUNfiltered_length)
+```
+
+
+Plotting
+```{r}
+hist(ufal_ecdc3$ufal_ecdc_length)
+
+
+library(ggplot2)
+library(ggpubr)
+
+ggplot(FinalCorpus, aes(sentence_length_b)) +
+    geom_bar(fill = "#0073C2FF") +
+    theme_pubclean()
+```
+
+Plot Hist with normal distribution line
+```{r}
+ggplot(FinalCorpus, aes(language_b, sentence_length_b)) +
+     geom_linerange(
+         aes(x = language_b, ymin = 0, ymax = sentence_length_b), 
+         color = "lightgray", size = 1.5
+     )+
+     geom_point(aes(color = language_b), size = 2)+
+     ggpubr::color_palette("jco")+
+     theme_pubclean()
+
+
+
+
+
+
+
+
+
+h <- hist(FinalCorpus$sentence_length_b, breaks = 30, density = 100,
+          col = "lightblue", xlab = "Sentence Length", main = "Final Corpus Distribution") 
+xfit <- seq(min(FinalCorpus$sentence_length_b), max(FinalCorpus$sentence_length_b), length = 400) 
+yfit <- dnorm(xfit, mean = mean(FinalCorpus$sentence_length_b), sd = sd(FinalCorpus$sentence_length_b)) 
+yfit <- yfit * diff(h$mids[1:2]) * length(FinalCorpus$sentence_length_b) 
+
+lines(xfit, yfit, col = "black", lwd = 2)
+
+
+
+
+library(gamlss)
+library(gamlss.dist)
+library(gamlss.add)
+
+x <- FinalCorpus$sentence_length_b
+
+fit <- fitDist(x, k = 2, type = "realplus", trace = FALSE, try.gamlss = TRUE)
+
+summary(fit)
+
+
+
+
+
+
+```
+
+
+```{r}
+
+table(medline3$language_a)
+
+
+table(ufal_ecdc$language_a)
+
+
+sapply(strsplit(ufal_ecdc$a_text, " "), length)
+
+
+table(ufal_ecdc$language_a, ufal_ecdc$language_b)
+
+describe(ufal_ecdc)
+
+boxplot(table_atextLength, col=5, horizontal=TRUE, notch=FALSE)
+
+ufal_ecdc_es <- dplyr::filter(ufal_ecdc, ufal_ecdc$language_a == "es")
+
+ufal_ecdc_es_length <- sapply(strsplit(ufal_ecdc_es$a_text, " "), length)
+
+
+table(medline$language_a)
+
+table(ufal_ecdc$language_a)
+
+table(ufal_emea$language_a)
+
+
+
+
+boxplot(medline_length, col=5, horizontal=TRUE, notch=FALSE)
+boxplot(ufal_emea_length, col=5, horizontal=TRUE, notch=FALSE)
+
+
+
+summary(ufal_emea_length)
+
+
+
+
+
+
+library(readr)
+ 
+ ufal_pattr <- read_csv("ufal_pattr_medical.csv")
+
+
+ table(ufal_pattr$language_a)
+
+
+
+
+
+ggponc2 <- cbind(ggponc, ggponc_length)
+
+testdf <- subset(ggponc2, subset = ggponc_length > 5 & ggponc_length < 20)
+
+```
+
+
+
+
+
+
+

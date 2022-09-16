@@ -1,0 +1,467 @@
+---
+title: "Statistical Tests"
+author: "Daniel Paeschke"
+date: "2/8/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+setwd("~/Desktop/R Data/Statistical Testing")
+library(readr)
+library(dplyr)
+```
+
+```{r}
+CEF_Scores <- read.csv("CEF_Scores.csv")
+DeepL_Scores <- read.csv("DeepL_Scores.csv")
+Google_Scores <- read.csv("Google_Scores.csv")
+IBM_Scores <- read.csv("IBM_Scores.csv")
+
+IBM_Scores1 <- read.csv("IBM_Scores_First_run_602d4677a6dc8.csv")
+IBM_Scores2 <- read.csv("IBM_Scores_Second_run_602e671957a38.csv")
+IBM_Scores <- rbind(IBM_Scores1, IBM_Scores2)
+CEF_Scores$X <- NULL
+DeepL_Scores$X <- NULL
+Google_Scores$X <- NULL
+IBM_Scores$X <- NULL
+
+rm(IBM_Scores)
+
+
+
+
+IBM_Scores1$ID <- seq.int(nrow(IBM_Scores1)) #add ID to cut 
+IBM_Scores1 <- subset(IBM_Scores1, subset = ID < 13180)   #adjust cutting manually 
+IBM_Scores1$ID <- NULL   #delete ID row
+
+```
+
+
+
+Descriptive Statistics
+```{r}
+table(CEF_Scores$original_language)
+table(DeepL_Scores$original_language)
+table(Google_Scores$original_language)
+table(IBM_Scores$original_language)
+#even 
+
+CEF_Scores <- CEF_Scores[-c(123), ]
+Google_Scores <- Google_Scores[-c(123), ]
+
+DeepL_Scores <- DeepL_Scores[-c(18502), ]
+Google_Scores <- Google_Scores[-c(18503), ]
+
+IBM_Scores <- IBM_Scores[-c(123), ]
+IBM_Scores <- IBM_Scores[-c(18503), ]
+
+write.csv(CEF_Scores, "CEF_Scores.csv")
+write.csv(DeepL_Scores, "DeepL_Scores.csv")
+write.csv(Google_Scores, "Google_Scores.csv")
+write.csv(IBM_Scores, "IBM_Scores.csv")
+
+
+
+
+
+```
+
+
+
+
+
+Plotting
+```{r}
+#   https://stackoverflow.com/questions/3541713/how-to-plot-two-histograms-together-in-r
+library(ggplot2)
+
+#BLEURT of Deepl and CEF
+DeepL_Scores$Translator_Source <- 'Deepl'
+CEF_Scores$Translator_Source <- 'CEF'
+Cef_and_Deepl <- rbind(DeepL_Scores, CEF_Scores)
+
+ggplot(Cef_and_Deepl, aes(BLEURT, fill = Translator_Source)) + geom_density(alpha = 0.2) 
+
+
+#BLEU of Deepl and CEF
+ggplot(Cef_and_Deepl, aes(BLEU, fill = Translator_Source)) + geom_density(alpha = 0.2) 
+
+# Rouge of Deepl and CEF
+
+ggplot(Cef_and_Deepl, aes(ROUGE, fill = Translator_Source)) + geom_density(alpha = 0.2) 
+
+
+# boxplot   https://www.r-graph-gallery.com/265-grouped-boxplot-with-ggplot2.html
+
+ggplot(Cef_and_Deepl, aes(x=Translator_Source, y=BLEURT, fill=Translator_Source)) + geom_boxplot()
+
+ggplot(Cef_and_Deepl, aes(x=Translator_Source, y=BLEU, fill=Translator_Source)) + geom_boxplot()
+
+ggplot(Cef_and_Deepl, aes(x=Translator_Source, y=ROUGE, fill=Translator_Source)) + geom_boxplot()
+
+
+
+#Violin Plots  http://www.sthda.com/english/articles/32-r-graphics-essentials/132-plot-grouped-data-box-plot-bar-plot-and-more/
+
+e <- ggplot(Cef_and_Deepl, aes(x = Translator_Source, y = BLEURT))
+
+e + geom_violin(aes(fill = Translator_Source), trim = FALSE) + 
+  geom_boxplot(width = 0.2)+
+  scale_fill_manual(values = c("#00AFBB", "#E7B800", "#FC4E07"))+
+  theme(legend.position = "none")
+
+```
+
+
+Plot Google and DeepL
+```{r}
+library(ggplot2)
+
+#BLEURT of Deepl and CEF
+DeepL_Scores$Translator_Source <- 'Deepl'
+Google_Scores$Translator_Source <- 'Google'
+Google_and_Deepl <- rbind(DeepL_Scores, Google_Scores)
+
+ggplot(Google_and_Deepl, aes(BLEURT, fill = Translator_Source)) + geom_density(alpha = 0.2) 
+ggplot(Google_and_Deepl, aes(ROUGE, fill = Translator_Source)) + geom_density(alpha = 0.2) 
+ggplot(Google_and_Deepl, aes(BLEU, fill = Translator_Source)) + geom_density(alpha = 0.2) 
+
+```
+
+
+Descriptive Statistics  #http://www.sthda.com/english/articles/32-r-graphics-essentials/132-plot-grouped-data-box-plot-bar-plot-and-more/
+
+```{r}
+library(ggpubr)
+compare_means(BLEURT ~ Translator_Source, data = Cef_and_Deepl,
+              method = "wilcox.test")
+
+
+
+# Create a simple box plot and add p-values
+p <- ggplot(Cef_and_Deepl, aes(Translator_Source, BLEURT)) +
+  geom_boxplot(aes(color = Translator_Source)) +
+  scale_color_manual(values = c("#00AFBB", "#E7B800"))
+p + stat_compare_means(method = "wilcox.test")
+
+
+
+
+```
+
+
+Kruskal Wallis    # http://www.sthda.com/english/wiki/kruskal-wallis-test-in-r
+https://www.datanovia.com/en/lessons/kruskal-wallis-test-in-r/   EFFECT SIZE unbedingt anschauen
+```{r}
+CEF_Scores$Translator_Source <- 'CEF'
+DeepL_Scores$Translator_Source <- 'Deepl'
+Google_Scores$Translator_Source <- 'Google'
+IBM_Scores$Translator_Source <- 'IBM'
+
+rm(CEF_DeepL_Google_IBM)
+CEF_DeepL_Google_IBM <- rbind(CEF_Scores, DeepL_Scores, Google_Scores, IBM_Scores)
+
+
+library(dplyr)
+group_by(CEF_DeepL_Google_IBM, Translator_Source) %>%
+  summarise(
+    count = n(),
+    mean = mean(BLEURT, na.rm = TRUE),
+    sd = sd(BLEURT, na.rm = TRUE),
+    median = median(BLEURT, na.rm = TRUE),
+    IQR = IQR(BLEURT, na.rm = TRUE)
+  )
+
+
+library("ggpubr")
+ggboxplot(CEF_DeepL_Google_IBM, x = "Translator_Source", y = "BLEURT", 
+          color = "Translator_Source", palette = c("#00AFBB", "#E7B800", "#FC4E07", "#009999"),
+          order = c("CEF", "Deepl", "Google", "IBM"),
+          ylab = "BLEURT", xlab = "Translator_Source")
+
+kruskal.test(BLEURT ~ Translator_Source, data = CEF_DeepL_Google_IBM)   #over all languages
+
+#single languages
+kruskal.test(BLEURT ~ Translator_Source, data = DE_CEF_DeepL_Google_IBM)
+kruskal.test(BLEURT ~ Translator_Source, data = ES_CEF_DeepL_Google_IBM)
+kruskal.test(BLEURT ~ Translator_Source, data = FR_CEF_DeepL_Google_IBM)
+
+
+
+pairwise.wilcox.test(CEF_DeepL_Google_IBM$BLEURT, CEF_DeepL_Google_IBM$Translator_Source,
+                 p.adjust.method = "BH")     #bh (Benjamini-Hochberg procedure)     #over all languages
+
+#single languages
+pairwise.wilcox.test(DE_CEF_DeepL_Google_IBM$BLEURT, DE_CEF_DeepL_Google_IBM$Translator_Source, p.adjust.method = "BH") 
+pairwise.wilcox.test(ES_CEF_DeepL_Google_IBM$BLEURT, ES_CEF_DeepL_Google_IBM$Translator_Source, p.adjust.method = "BH") 
+pairwise.wilcox.test(FR_CEF_DeepL_Google_IBM$BLEURT, FR_CEF_DeepL_Google_IBM$Translator_Source, p.adjust.method = "BH") 
+
+
+#  Pairwise comparisons using Dunn’s test:
+# Pairwise comparisons
+
+library(tidyverse)
+library(ggpubr)
+library(rstatix)
+library(dunn.test)
+library(FSA)
+
+pwc <- CEF_DeepL_Google_IBM
+dunnTest(pwc$BLEURT ~ pwc$Translator_Source, method="bonferroni") 
+
+DE_CEF_DeepL_Google_IBM <- rbind(CefDe, DeepLDe, GoogleDe, IBMDe)
+ES_CEF_DeepL_Google_IBM <- rbind(CefEs, DeepLEs, GoogleEs, IBMEs)
+FR_CEF_DeepL_Google_IBM <- rbind(CefFr, DeepLFr, GoogleFr, IBMFr)
+
+
+dunnTest(DE_CEF_DeepL_Google_IBM$BLEURT ~ DE_CEF_DeepL_Google_IBM$Translator_Source, method="bonferroni") 
+
+dunnTest(ES_CEF_DeepL_Google_IBM$BLEURT ~ ES_CEF_DeepL_Google_IBM$Translator_Source, method="bonferroni") 
+
+dunnTest(FR_CEF_DeepL_Google_IBM$BLEURT ~ FR_CEF_DeepL_Google_IBM$Translator_Source, method="bonferroni") 
+
+
+```
+
+
+
+
+
+# Manipulating the Data
+# Cut Off BLEURT below 0
+```{r}
+
+BLEURT_above_0 <- Cef_and_Deepl
+
+
+BLEURT_above_0 <- BLEURT_above_0[order(BLEURT_above_0$BLEURT),]
+row.names(BLEURT_above_0) <- NULL   # reset row name after ordering
+
+BLEURT_above_0$ID <- seq.int(nrow(BLEURT_above_0)) #add ID to cut 
+BLEURT_above_0 <- subset(BLEURT_above_0, subset = ID > 6402)
+BLEURT_above_0$ID <- NULL   #delete ID row
+
+
+group_by(BLEURT_above_0, Translator_Source) %>%
+  summarise(
+    count = n(),
+    mean = mean(BLEURT, na.rm = TRUE),
+    sd = sd(BLEURT, na.rm = TRUE),
+    median = median(BLEURT, na.rm = TRUE),
+    IQR = IQR(BLEURT, na.rm = TRUE)
+  )
+
+
+
+cor.test(BLEURT_above_0$BLEURT, BLEURT_above_0$BLEU, method=c("pearson"))
+
+
+
+ggscatter(BLEURT_above_0, x = "BLEURT", y = "BLEU", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "BLEURT", ylab = " BLEU")
+
+
+res <- cor.test(BLEURT_above_0$BLEU, BLEURT_above_0$BLEURT, 
+                    method = "pearson")
+res
+
+res2 <- cor.test(DeepL_Scores$BLEURT, DeepL_Scores$ROUGE, 
+                    method = "kendall")
+res2
+
+my_data <- select(DeepL_Scores, BLEU, ROUGE, BLEURT)
+
+install.packages("Hmisc")
+library("Hmisc")
+res3 <- rcorr(as.matrix(my_data))
+res3
+
+
+rcorr(my_data, type = c("spearman"))
+
+library(corrplot)
+corrplot(res3, type = "upper", order = "hclust", 
+         tl.col = "black", tl.srt = 45)
+
+mcor <- cor(my_data, method="kendall", use="pairwise") 
+
+upper<-mcor
+upper[upper.tri(mcor)]<-""
+upper<-as.data.frame(upper)
+upper
+```
+
+
+
+```{r}
+library(pwr)
+pwr.p.test(h = c(0.2,0.5,0.8),
+           n = 1000,
+           sig.level = 0.0084)
+
+
+
+
+library(WebPower)
+wp.t(n1=NULL, d=.3, power=0.8, type='paired')
+
+
+
+pwr.t.test(n = , d = .2 , sig.level = 0.0084 , power = 0.95 , type = c("one.sample"))
+
+
+
+```
+
+
+Wilcoxon
+```{r}
+
+wilcox.test(x, y, alternative = "two.sided")
+
+
+
+DeepLDe <- dplyr::filter(DeepL_Scores, original_language %in% c("de"))
+DeepLEs <- dplyr::filter(DeepL_Scores, original_language %in% c("es"))
+DeepLFr <- dplyr::filter(DeepL_Scores, original_language %in% c("fr"))
+
+CefDe <- dplyr::filter(CEF_Scores, original_language %in% c("de"))
+CefEs <- dplyr::filter(CEF_Scores, original_language %in% c("es"))
+CefFr <- dplyr::filter(CEF_Scores, original_language %in% c("fr"))
+
+GoogleDe <- dplyr::filter(Google_Scores, original_language %in% c("de"))
+GoogleEs <- dplyr::filter(Google_Scores, original_language %in% c("es"))
+GoogleFr <- dplyr::filter(Google_Scores, original_language %in% c("fr"))
+
+IBMDe <- dplyr::filter(IBM_Scores, original_language %in% c("de"))
+IBMEs <- dplyr::filter(IBM_Scores, original_language %in% c("es"))
+IBMFr <- dplyr::filter(IBM_Scores, original_language %in% c("fr"))
+
+
+
+
+wilcox.test(DeepLDe$BLEURT, CefDe$BLEURT, alternative = "two.sided")
+wilcox.test(DeepLDe$BLEURT, CefDe$BLEURT, alternative = "greater")
+wilcox.test(DeepLDe$BLEURT, CefDe$BLEURT, alternative = "less")
+
+wilcox.test(DeepLEs$BLEURT, CefEs$BLEURT, alternative = "two.sided")
+wilcox.test(DeepLEs$BLEURT, CefEs$BLEURT, alternative = "greater")
+wilcox.test(DeepLEs$BLEURT, CefEs$BLEURT, alternative = "less")
+
+wilcox.test(DeepLFr$BLEURT, CefFr$BLEURT, alternative = "two.sided")
+wilcox.test(DeepLFr$BLEURT, CefFr$BLEURT, alternative = "greater")
+wilcox.test(DeepLFr$BLEURT, CefFr$BLEURT, alternative = "less")
+
+
+
+
+
+wilcox.test(GoogleDe$BLEURT, DeepLDe$BLEURT, alternative = "two.sided")
+wilcox.test( GoogleDe$BLEURT, DeepLDe$BLEURT, alternative = "greater")
+wilcox.test(GoogleDe$BLEURT, DeepLDe$BLEURT,  alternative = "less")
+
+wilcox.test(DeepLEs$BLEURT, GoogleEs$BLEURT, alternative = "two.sided")
+wilcox.test(DeepLEs$BLEURT, GoogleEs$BLEURT, alternative = "greater")
+wilcox.test(DeepLEs$BLEURT, GoogleEs$BLEURT, alternative = "less")
+
+wilcox.test(DeepLFr$BLEURT, GoogleFr$BLEURT, alternative = "two.sided")
+wilcox.test(DeepLFr$BLEURT, GoogleFr$BLEURT, alternative = "greater")
+wilcox.test(DeepLFr$BLEURT, GoogleFr$BLEURT, alternative = "less")
+
+
+
+
+wilcox.test(IBMDe$BLEURT, CefDe$BLEURT, alternative = "two.sided")
+wilcox.test(IBMDe$BLEURT, CefDe$BLEURT, alternative = "greater")
+wilcox.test(IBMDe$BLEURT, CefDe$BLEURT, alternative = "less")
+
+wilcox.test(IBMEs$BLEURT, CefEs$BLEURT, alternative = "two.sided")
+wilcox.test(IBMEs$BLEURT, CefEs$BLEURT, alternative = "greater")
+wilcox.test(IBMEs$BLEURT, CefEs$BLEURT, alternative = "less")
+
+wilcox.test(IBMFr$BLEURT, CefFr$BLEURT, alternative = "two.sided")
+wilcox.test(IBMFr$BLEURT, CefFr$BLEURT, alternative = "greater")
+wilcox.test(IBMFr$BLEURT, CefFr$BLEURT, alternative = "less")
+
+
+
+
+
+
+```
+
+
+
+```{r}
+DE_Cef_and_Deepl <- rbind(DeepLDe, CefDe)
+ES_Cef_and_Deepl <- rbind(DeepLEs, CefEs)
+FR_Cef_and_Deepl <- rbind(DeepLFr, CefFr)
+
+ggplot(DE_Cef_and_Deepl, aes(BLEURT, fill = Translator_Source)) + geom_density(alpha = 0.2) 
+ggplot(ES_Cef_and_Deepl, aes(BLEURT, fill = Translator_Source)) + geom_density(alpha = 0.2) 
+ggplot(FR_Cef_and_Deepl, aes(BLEURT, fill = Translator_Source)) + geom_density(alpha = 0.2) 
+
+ggplot(DE_Cef_and_Deepl, aes(ROUGE, fill = Translator_Source)) + geom_density(alpha = 0.2) 
+ggplot(ES_Cef_and_Deepl, aes(ROUGE, fill = Translator_Source)) + geom_density(alpha = 0.2)
+ggplot(FR_Cef_and_Deepl, aes(ROUGE, fill = Translator_Source)) + geom_density(alpha = 0.2) 
+
+ggplot(DE_Cef_and_Deepl, aes(BLEU, fill = Translator_Source)) + geom_density(alpha = 0.2) 
+ggplot(ES_Cef_and_Deepl, aes(BLEU, fill = Translator_Source)) + geom_density(alpha = 0.2) 
+ggplot(FR_Cef_and_Deepl, aes(BLEU, fill = Translator_Source)) + geom_density(alpha = 0.2) 
+
+
+
+
+```
+
+
+Normality Tests
+
+```{r}
+shapiro.test(DeepL_Scores.new$BLEURT)
+
+ks.test(DeepL_Scores$BLEURT, CEF_Scores$BLEURT)
+
+
+ks.test(DeepL_Scores$BLEURT, "pnorm", mean=mean(DeepL_Scores$BLEURT), sd=sd(DeepL_Scores$BLEURT))
+
+ks.test(DeepL_Scores$BLEU, "pnorm", mean=mean(DeepL_Scores$BLEU), sd=sd(DeepL_Scores$BLEU))
+
+ks.test(CEF_Scores$BLEURT, "pnorm", mean=mean(CEF_Scores$BLEURT), sd=sd(CEF_Scores$BLEURT))
+
+
+DeepL_Scores.new = DeepL_Scores[seq(1, nrow(DeepL_Scores), 20), ]
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,19 @@
+{
+  "server": "SERVER_ADDRESS",
+  "user": "SERVER_USER",
+  "password": "SERVER_PASSWORD",
+  "cef": {
+    "rest": "https://webgate.ec.europa.eu/etranslation/si/translate",
+    "email": false,
+    "user": "CEF_USER_ID",
+    "password": "CEF_PASSWORD"
+  },
+  "deepl": {
+    "rest": "https://api.deepl.com/v2/translate",
+    "auth_key": "DEEPL_AUTH_KEY"
+  },
+  "ibm": {
+    "rest": "IBM_TRANSLATOR_SERVICE_URL",
+    "auth_key": "IBM_AUTH_KEY"
+  }
+}

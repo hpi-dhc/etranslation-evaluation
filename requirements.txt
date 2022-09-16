@@ -1,0 +1,9 @@
+gdown
+jiwer
+nltk
+pyter3
+rouge-score
+datasets
+tensorflow>=1.15
+git+https://github.com/google-research/bleurt.git@master
+
