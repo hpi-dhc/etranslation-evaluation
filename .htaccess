@@ -1,0 +1,8 @@
+Deny From All
+<FilesMatch "^cefCallback\.php$">
+Allow From All
+</FilesMatch>
+
+<FilesMatch "^index\.php$">
+Allow From All
+</FilesMatch>
